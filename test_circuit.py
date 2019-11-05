@@ -3,11 +3,16 @@ from __future__ import division
 import meep as mp
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib import rc
+rc('text', usetex=True)
 
 #work in cm (set scaling factor a = 1 cm for normalization)
 a = 1e-2;
+#constants 
+c = 299792458
+eps_0 = 8.8541878128e-12;
 
-UseEigenModeSolver = True;
+UseEigenModeSolver = False;
 
 #setup the baseline parameters
 fIn = 10e9;
@@ -27,10 +32,11 @@ bdielectric = 4.4;
 twidth = 2.5*2.54;
 theight = 0.1*2.54;
 tthick = mp.inf;#0.01;
-tconductivity = 58.108e6*a; # M-Siemens/m converted to the normalization
+tconductivity = 58.108e6; # M-Siemens/m
+eps_r = 1;
+sigma_dt = (a/c)*tconductivity/(eps_r * eps_0);
 
-#constants 
-c = 299792458
+sigma_dr = (a/c)*(1/100)/(eps_r * eps_0);
 
 #normalization
 wavelength = c/fIn;
@@ -69,11 +75,19 @@ board = mp.Block(mp.Vector3(bwidth,bheight,bthick),
                      
 trace1 = mp.Block(mp.Vector3(twidth,theight,tthick),
                    center=mp.Vector3(0,1,0),
+                   #material = mp.Medium(epsilon=1,D_conductivity=sigma_dt));
                    material=mp.metal);  
                    
 trace2 = mp.Block(mp.Vector3(twidth,theight,tthick),
                    center=mp.Vector3(0,-1,0),
-                   material=mp.metal);                    
+                   #material = mp.Medium(epsilon=1,D_conductivity=sigma_dt));
+                   material=mp.metal);       
+                   
+                   
+t3 = mp.Block(mp.Vector3(theight,2,0),
+			    center=mp.Vector3(twidth/2-theight/2,0,0),
+			    material = mp.Medium(epsilon=1,D_conductivity=sigma_dr));    
+			    #material=mp.metal);          
 
 
 geometry = [board, trace1, trace2];
@@ -127,11 +141,11 @@ if UseEigenModeSolver:
 		ff = np.append(ff,eig_freqs[i]*c/a*1e-9);
 
 	plt.figure()
-	plt.plot(ff,np.abs(S11));
-	plt.plot(ff,np.abs(S12));
+	p1, = plt.plot(ff,np.abs(S11));
+	p2, = plt.plot(ff,np.abs(S12));
 	plt.xlabel("Frequency (GHz)");
 	plt.ylabel("|S|");
-	plt.legend("$S_{11}$", "$S_{12}$");
+	plt.legend([p1,p2],["$S_{11}$", "$S_{12}$"]);
 	plt.show();
 
 eps_data = sim.get_array(center=mp.Vector3(), size=cell, component=mp.Dielectric)
@@ -157,4 +171,17 @@ plt.plot(buffer*b + bwidth*b, y + buffer*b, color = 'black');
 plt.xlabel("X")
 plt.ylabel("Y")
 plt.title("Ez Component")
+plt.show()
+
+jz_data = sim.get_array(center=mp.Vector3(), size=cell, component=mp.Jz)
+plt.figure()
+plt.imshow(eps_data.transpose(), interpolation='spline36', cmap='binary')
+plt.imshow(ejz_data.transpose(), interpolation='spline36', cmap='RdBu', alpha=0.9)
+plt.plot(x + buffer*b,buffer*b + bheight*b ,color = 'black');
+plt.plot(x + buffer*b,buffer*b, color = 'black');
+plt.plot(buffer*b, y + buffer*b, color = 'black');
+plt.plot(buffer*b + bwidth*b, y + buffer*b, color = 'black');
+plt.xlabel("X")
+plt.ylabel("Y")
+plt.title("Jz Component")
 plt.show()
