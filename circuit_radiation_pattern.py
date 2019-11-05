@@ -6,6 +6,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import h5py
 
+from circuitFunctions import createCircuitGeometry
+
 #constants 
 c = 299792458
 
@@ -15,10 +17,7 @@ a = 1e-2;
 #setup the baseline parameters
 fIn = 10e9;
 fWidth = 5e9;
-resolution = 20; #number of points per normalization length
-nfreq = 1000;
-pmlThickness = 1;
-buffer = 10;
+resolution = 30; #number of points per normalization length
 
 #normalization
 wavelength = c/fIn;
@@ -27,55 +26,18 @@ nPointsPerWavelength = resolution/a*wavelength;
 df = fWidth*a/c;
 tScale = 2*resolution;
 
-maxPathLength = 2;
-t = maxPathLength/c;
-tau = t*c/a;
-nTimeSteps = tScale*tau;
 
 #output normalized values
 print("Wavelength: ", wavelength)
 print("Normalized Frequency: ", f)
 print("Normalized Frequency Width: ", df)
 print("Number of Points Per Wavelength: ", nPointsPerWavelength)
-print("Stop Time (seconds): ", t)
-print("Number of Time Steps: ", nTimeSteps)
-print("Normalized Stop Time: ", tau)
 
-
-#setup the board 
-bwidth = 4*2.54;
-bheight = 3*2.54;
-bthick = mp.inf;#0.5;
-bdielectric = 4.4;
-
-pml_layers = [mp.PML(pmlThickness)]
-
-board = mp.Block(mp.Vector3(bwidth,bheight,bthick),
-                     center=mp.Vector3(0,0,0),
-                     material=mp.Medium(epsilon=bdielectric));
-
-#setup the cell
-cell = mp.Vector3(bwidth+buffer,bheight+buffer,0);
-
-
-#setup the trace on the board
-
-#setup the trace
-twidth = 2.5*2.54;
-theight = 0.1*2.54;
-tthick = mp.inf;
-
-trace = mp.Block(mp.Vector3(twidth,theight,tthick),
-                   center=mp.Vector3(0,0,0),
-                   material=mp.metal);  
-                   
-#setup the geometry
-geometry = [board,trace];
-
+#get the geometry and physical layout for the simulation 
+geometry,cell,pml_layers, p1Loc, nfXPos, nfYPos, nfXSize, nfYSize = createCircuitGeometry(a, resolution);
 
 #setup the source
-p1Loc = mp.Vector3(0,0,0);
-src_cmpt = mp.Ey
+src_cmpt = mp.Ex
 sources = [mp.Source(src=mp.GaussianSource(f,fwidth=df),
                      center=p1Loc,
                      component=src_cmpt)]
@@ -97,24 +59,21 @@ sim = mp.Simulation(cell_size=cell,
                     symmetries=symmetries,
                     boundary_layers=pml_layers,
                     geometry=geometry)  
-
-d1 = 0.5;
                   
-
  
-#setup the near field box                             
+#setup the near field box 
 nearfield_box = sim.add_near2far(f, 0, 1, 
-mp.Near2FarRegion(mp.Vector3(y=0.5*(bheight+buffer/2)), size=mp.Vector3(x=bwidth)),
-mp.Near2FarRegion(mp.Vector3(y=-0.5*(bheight+buffer/2)), size=mp.Vector3(x=bwidth), weight=-1),
-mp.Near2FarRegion(mp.Vector3(x=0.5*(bwidth+buffer/2)), size=mp.Vector3(y=bheight)),
-mp.Near2FarRegion(mp.Vector3(x=-0.5*(bwidth+buffer/2)), size=mp.Vector3(y=bheight), weight=-1))
-
+mp.Near2FarRegion(mp.Vector3(y = nfYPos), size=nfXSize),
+mp.Near2FarRegion(mp.Vector3(y = -nfYPos), size=nfXSize, weight=-1),
+mp.Near2FarRegion(mp.Vector3(x = nfXPos),size = nfYSize),
+mp.Near2FarRegion(mp.Vector3(x = -nfXPos), size=nfYSize, weight=-1))
+                            
 #add the flux box
 flux_box = sim.add_flux(f, 0, 1,
-mp.FluxRegion(mp.Vector3(y=0.5*(bheight+buffer/2)), size=mp.Vector3(x=bwidth)),
-mp.FluxRegion(mp.Vector3(y=-0.5*(bheight+buffer/2)), size=mp.Vector3(x=bwidth), weight=-1),
-mp.FluxRegion(mp.Vector3(x=0.5*(bwidth+buffer/2)), size=mp.Vector3(y=bheight)),
-mp.FluxRegion(mp.Vector3(x=-0.5*(bwidth+buffer/2)), size=mp.Vector3(y=bheight), weight=-1))
+mp.FluxRegion(mp.Vector3(y = nfYPos), size=nfXSize),
+mp.FluxRegion(mp.Vector3(y = -nfYPos), size=nfXSize, weight=-1),
+mp.FluxRegion(mp.Vector3(x = nfXPos), size=nfYSize),
+mp.FluxRegion(mp.Vector3(x = -nfXPos), size=nfYSize, weight=-1))
 
 #run the simulation
 sim.run(until_after_sources=mp.stop_when_fields_decayed(50, src_cmpt, mp.Vector3(), 1e-8))
