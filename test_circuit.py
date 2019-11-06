@@ -172,16 +172,3 @@ plt.xlabel("X")
 plt.ylabel("Y")
 plt.title("Ez Component")
 plt.show()
-
-jz_data = sim.get_array(center=mp.Vector3(), size=cell, component=mp.Jz)
-plt.figure()
-plt.imshow(eps_data.transpose(), interpolation='spline36', cmap='binary')
-plt.imshow(ejz_data.transpose(), interpolation='spline36', cmap='RdBu', alpha=0.9)
-plt.plot(x + buffer*b,buffer*b + bheight*b ,color = 'black');
-plt.plot(x + buffer*b,buffer*b, color = 'black');
-plt.plot(buffer*b, y + buffer*b, color = 'black');
-plt.plot(buffer*b + bwidth*b, y + buffer*b, color = 'black');
-plt.xlabel("X")
-plt.ylabel("Y")
-plt.title("Jz Component")
-plt.show()
