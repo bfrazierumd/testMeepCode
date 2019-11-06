@@ -15,8 +15,8 @@ c = 299792458
 a = 1e-2;
 
 #setup the baseline parameters
-fIn = 10e9;
-fWidth = 5e9;
+fIn = 1e9;
+fWidth = 0.5e9;
 resolution = 30; #number of points per normalization length
 
 #normalization
@@ -26,9 +26,8 @@ nPointsPerWavelength = resolution/a*wavelength;
 df = fWidth*a/c;
 tScale = 2*resolution;
 
-
 #output normalized values
-print("Wavelength: ", wavelength)
+print("Wavelength: ", wavelength, "m")
 print("Normalized Frequency: ", f)
 print("Normalized Frequency Width: ", df)
 print("Number of Points Per Wavelength: ", nPointsPerWavelength)
@@ -37,7 +36,7 @@ print("Number of Points Per Wavelength: ", nPointsPerWavelength)
 geometry,cell,pml_layers, p1Loc, nfXPos, nfYPos, nfXSize, nfYSize = createCircuitGeometry(a, resolution);
 
 #setup the source
-src_cmpt = mp.Ex
+src_cmpt = mp.Ez
 sources = [mp.Source(src=mp.GaussianSource(f,fwidth=df),
                      center=p1Loc,
                      component=src_cmpt)]
@@ -78,16 +77,15 @@ mp.FluxRegion(mp.Vector3(x = -nfXPos), size=nfYSize, weight=-1))
 #run the simulation
 sim.run(until_after_sources=mp.stop_when_fields_decayed(50, src_cmpt, mp.Vector3(), 1e-8))
 
-
-print("Getting Flux ...")
-near_flux = mp.get_fluxes(flux_box)[0]
-
-r = 1000/f      # half side length of far-field square box OR radius of far-field circle
-res_ff = 1       # resolution of far fields (points/μm)
-far_flux_box = (nearfield_box.flux(mp.Y, mp.Volume(center=mp.Vector3(y=r), size=mp.Vector3(2*r)), res_ff)[0]
-               - nearfield_box.flux(mp.Y, mp.Volume(center=mp.Vector3(y=-r), size=mp.Vector3(2*r)), res_ff)[0]
-               + nearfield_box.flux(mp.X, mp.Volume(center=mp.Vector3(r), size=mp.Vector3(y=2*r)), res_ff)[0]
-              - nearfield_box.flux(mp.X, mp.Volume(center=mp.Vector3(-r), size=mp.Vector3(y=2*r)), res_ff)[0])
+#for Farfield, radius must be >> 2D/lambda
+#make sure to use the appropriate units for scaling
+lamb = c/fIn; #wavelength in meters
+#let D be the maximum extent of the near field box, scale by a to get the value in m
+min_radius = np.ceil(2*a*np.maximum(nfXSize.norm(),nfYSize.norm())/lamb);
+#to make sure r >> 2D/lambda, scale by an order of magnitude
+r = np.floor(10*min_radius);
+print("Minimum Radius for Far Field: ", min_radius, "cm")
+print("Far Field Radius: ", r, "cm")
 
 npts = 1000         # number of points in [0,2*pi) range of angles
 angles = 2*math.pi/npts*np.arange(npts)
@@ -105,10 +103,6 @@ for n in range(npts):
 Px = np.real(np.multiply(E[:,1],H[:,2])-np.multiply(E[:,2],H[:,1]))
 Py = np.real(np.multiply(E[:,2],H[:,0])-np.multiply(E[:,0],H[:,2]))
 Pr = np.sqrt(np.square(Px)+np.square(Py))
-
-far_flux_circle = np.sum(Pr)*2*np.pi*r/len(Pr)
-
-print("flux:, {:.6f}, {:.6f}, {:.6f}".format(near_flux,far_flux_box,far_flux_circle))
 
 #save the response to an h5 file
 if src_cmpt == mp.Ex:

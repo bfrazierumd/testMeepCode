@@ -3,7 +3,7 @@ import meep as mp
 def createCircuitGeometry(a, resolution):
 
 	pmlThickness = 1;
-	buffer = 4;
+	buffer = 5/resolution;
 	
 	pml_layers = [mp.PML(pmlThickness)]
 	
@@ -27,7 +27,7 @@ def createCircuitGeometry(a, resolution):
                    material=mp.metal);  
                    
 	geometry = [board,trace];
-	cell = mp.Vector3(bwidth+buffer,bheight+buffer,0);
+	cell = mp.Vector3(bwidth+2*(buffer+pmlThickness),bheight+2*(buffer+pmlThickness),0);
 	
 	#setup the near field box
 	nfXPos = 0.5*(bwidth+buffer/2);
@@ -43,4 +43,4 @@ def createCircuitGeometry(a, resolution):
 	
 	print("Points Per Trace Thickness: ", nPointsPerTraceThickness)
 	
-	return geometry, cell, pml_layers, p1Loc , nfXPos, nfYPos, nfXWidth, nfYWidth           
+	return geometry, cell, pml_layers, p1Loc , nfXPos, nfYPos, nfXWidth, nfYWidth, board, buffer+pmlThickness           
