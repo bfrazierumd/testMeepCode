@@ -15,9 +15,12 @@ c = 299792458
 a = 1e-2;
 
 #setup the baseline parameters
-fIn = 1e9;
-fWidth = 0.5e9;
-resolution = 30; #number of points per normalization length
+fIn = 10e9;
+fWidth = 2e9;
+resolution = 10; #number of points per normalization length
+
+fGHz = np.floor(fIn/1e9);
+fGHz = fGHz.astype(str);
 
 #normalization
 wavelength = c/fIn;
@@ -26,6 +29,10 @@ nPointsPerWavelength = resolution/a*wavelength;
 df = fWidth*a/c;
 tScale = 2*resolution;
 
+mWavelength = c/(fIn - fWidth);
+
+print("Max Simulated Wavelength: ", mWavelength, "m")
+
 #output normalized values
 print("Wavelength: ", wavelength, "m")
 print("Normalized Frequency: ", f)
@@ -33,7 +40,8 @@ print("Normalized Frequency Width: ", df)
 print("Number of Points Per Wavelength: ", nPointsPerWavelength)
 
 #get the geometry and physical layout for the simulation 
-geometry,cell,pml_layers, p1Loc, nfXPos, nfYPos, nfXSize, nfYSize = createCircuitGeometry(a, resolution);
+#get the geometry and physical layout for the simulation 
+geometry,cell,pml_layers, p1Loc, nfXPos, nfYPos, nfXSize, nfYSize, board, buffer,pmlthick = createCircuitGeometry(a, resolution, mWavelength, 0);
 
 #setup the source
 src_cmpt = mp.Ez
@@ -44,12 +52,18 @@ sources = [mp.Source(src=mp.GaussianSource(f,fwidth=df),
 if src_cmpt == mp.Ex:
     symmetries = [mp.Mirror(mp.X,phase=-1),
                   mp.Mirror(mp.Y,phase=+1)]
+    src_string="|Ex|";
+    src_output = mp.output_efield_x;
 elif src_cmpt == mp.Ey:
     symmetries = [mp.Mirror(mp.X,phase=+1),
                   mp.Mirror(mp.Y,phase=-1)]
+    src_string="|Ey|";
+    src_output = mp.output_efield_y;
 elif src_cmpt == mp.Ez:
     symmetries = [mp.Mirror(mp.X,phase=+1),
                   mp.Mirror(mp.Y,phase=+1)]
+    src_string="|Ez|";
+    src_output = mp.output_efield_z;
 
 #setup the overall simulation            
 sim = mp.Simulation(cell_size=cell,
@@ -106,11 +120,14 @@ Pr = np.sqrt(np.square(Px)+np.square(Py))
 
 #save the response to an h5 file
 if src_cmpt == mp.Ex:
-    hf=h5py.File('antenna_response_ex.h5','w');
+	fname = 'antenna_response_ex' + fGHz + '.h5';
+	hf=h5py.File(fname,'w');
 elif src_cmpt == mp.Ey:
-    hf=h5py.File('antenna_response_ey.h5','w');
+	fname = 'antenna_response_ey' + fGHz + '.h5';
+	hf=h5py.File(fname,'w');
 elif src_cmpt == mp.Ez:
-    hf=h5py.File('antenna_response_ez.h5','w');
+	fname = 'antenna_response_ez' + fGHz + '.h5';
+	hf=h5py.File(fname,'w');
 
 hf.create_dataset('antennaPower', data=Pr);
 hf.create_dataset('angles', data=angles);
@@ -130,5 +147,6 @@ ax.set_rmax(1)
 ax.set_rticks([0,0.5,1])
 ax.grid(True)
 ax.set_rlabel_position(22)
+ax.set_title(src_string)
 plt.show()
 

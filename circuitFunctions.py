@@ -1,9 +1,16 @@
 import meep as mp
 
-def createCircuitGeometry(a, resolution):
+def createCircuitGeometry(a, resolution, mwavelength, additional_buffer):
 
-	pmlThickness = 1;
-	buffer = 5/resolution;
+	#need to have the PML thickness equal to 1/2 the maximum wavelength
+	#to allow for wide bandwidth, pick this as just the maximum wavelength
+	pmlThickness = mwavelength/(2*a);
+	
+	if pmlThickness < 1:
+		pmlThickness = 1
+		
+	print("PML Thickness: ", pmlThickness)
+	buffer = 5/resolution + additional_buffer;
 	
 	pml_layers = [mp.PML(pmlThickness)]
 	
@@ -19,7 +26,7 @@ def createCircuitGeometry(a, resolution):
 
 	#setup the trace
 	twidth = 3.5*.0254/a;
-	theight = 0.3*.0254/a;
+	theight = 0.2*.0254/a;
 	tthick = mp.inf;
 
 	trace = mp.Block(mp.Vector3(twidth,theight,tthick),
@@ -36,11 +43,11 @@ def createCircuitGeometry(a, resolution):
 	nfYWidth = mp.Vector3(y=bheight);
 	
 	#initialize the port location
-	pWidth = 1/resolution
-	p1Loc = mp.Vector3(-twidth/2 ,0,0);
+	pWidth = 2/resolution
+	p1Loc = mp.Vector3(-twidth/2,0,0);
 	
 	nPointsPerTraceThickness = resolution/theight;
 	
 	print("Points Per Trace Thickness: ", nPointsPerTraceThickness)
 	
-	return geometry, cell, pml_layers, p1Loc , nfXPos, nfYPos, nfXWidth, nfYWidth, board, buffer+pmlThickness           
+	return geometry, cell, pml_layers, p1Loc , nfXPos, nfYPos, nfXWidth, nfYWidth, board, buffer,pmlThickness           

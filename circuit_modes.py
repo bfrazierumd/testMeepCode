@@ -15,9 +15,9 @@ c = 299792458
 a = 1e-2;
 
 #setup the baseline parameters
-fIn = 1e9;
-fWidth = .5e9;
-resolution = 30; #number of points per normalization length
+fIn = 5e9;
+fWidth = 1e9;
+resolution = 20; #number of points per normalization length
 
 #normalization
 wavelength = c/fIn;
@@ -26,17 +26,22 @@ nPointsPerWavelength = resolution/a*wavelength;
 df = fWidth*a/c;
 tScale = 2*resolution;
 
+mWavelength = c/(fIn - fWidth);
+additional_buffer = 5;
+
+print("Max Simulated Wavelength: ", mWavelength, "m")
+
 #get the geometry and physical layout for the simulation 
-geometry,cell,pml_layers, p1Loc, nfXPos, nfYPos, nfXSize, nfYSize, board, buffer = createCircuitGeometry(a, resolution);
+geometry,cell,pml_layers, p1Loc, nfXPos, nfYPos, nfXSize, nfYSize, board, buffer,pmlthick = createCircuitGeometry(a, resolution, mWavelength, additional_buffer);
 
 bx = board.size.x + board.center.x;
 by = board.size.y + board.center.y;
 
 print("Board X: " , bx, "Board Y: ", by)
 
-maxPathLength = np.maximum(nfXSize.norm(),nfYSize.norm());
+maxPathLength = np.maximum(bx,by);
 t = maxPathLength/c;
-tau = t*c/a;
+tau = 250;#t*c/a;
 nTimeSteps = tScale*tau;
 
 #output normalized values
@@ -96,15 +101,27 @@ b = np.ones(100)*resolution;
 o = np.ones(100);
 y = np.linspace(0, by*resolution, 100)
 
+x1 = np.linspace(0,(bx + 2*buffer)*resolution,100);
+y1 = np.linspace(0,(by + 2*buffer)*resolution, 100);
+
 e_data = sim.get_array(center=mp.Vector3(), size=cell, component=src_cmpt)
 plt.figure()
 plt.imshow(eps_data.transpose(), interpolation='spline36', cmap='binary')
 plt.imshow(e_data.transpose(), interpolation='spline36', cmap='RdBu', alpha=0.9)
 
-plt.plot(x + buffer*b,buffer*b + by*b ,color = 'black');
-plt.plot(x + buffer*b,buffer*b, color = 'black');
-plt.plot(buffer*b, y + buffer*b, color = 'black');
-plt.plot(buffer*b + bx*b, y + buffer*b, color = 'black');
+#plot the board
+plt.plot(x + (buffer+pmlthick)*b,(buffer+pmlthick)*b + by*b ,color = 'black');
+plt.plot(x + (buffer+pmlthick)*b,(buffer+pmlthick)*b, color = 'black');
+plt.plot((buffer+pmlthick)*b, y + (buffer+pmlthick)*b, color = 'black');
+plt.plot((buffer+pmlthick)*b + bx*b, y + (buffer+pmlthick)*b, color = 'black');
+
+#plot the buffer
+plt.plot(x1 + pmlthick*b, pmlthick*b + (by + 2*buffer)*b ,color = 'green');
+plt.plot(x1 + pmlthick*b, pmlthick*b ,color = 'green');
+plt.plot(pmlthick*b ,y1 + pmlthick*b,color = 'green');
+plt.plot(pmlthick*b + (bx + 2*buffer)*b,y1 + pmlthick*b,color = 'green');
+
+
 plt.xlabel("X")
 plt.ylabel("Y")
 plt.colorbar();
